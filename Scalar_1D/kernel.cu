@@ -1,4 +1,4 @@
-﻿#include "cuda_runtime.h"
+#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
@@ -253,8 +253,6 @@ void LhCPU(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk])
 
         // The Lax-Friedrichs flux !
         fhat[i] = 0.5 * (fR + fL) - 0.5 * SR * (uR - uL);
-
-        //printf("%.16f %.16f %.16f\n", fR, fL, fhat[i]);
     }
 
     // Calculate the surface integral !
@@ -266,7 +264,6 @@ void LhCPU(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk])
         }
         for (d = 0; d < dimPk; d++)
         {
-            //du[i][d] = du[i][d] - (1 * phiGR[d] - 1 * phiGL[d]) / hx;
             du[i][d] = du[i][d] - (fhat[i] * phiGR[d] - fhat[i - 1] * phiGL[d]) / hx;
         }
     }
@@ -285,7 +282,7 @@ __global__ void Lh(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk], double 
 {
     double fL, fR, uL, uR, SR, SL;
     double fhatR, fhatL;
-    double uhG[Nx1 + 1][NumGLP]; // , uhR[Nx1 + 1], uhL[Nx1 + 1];
+    double uhG[NumGLP];
     double uhR, uhRn, uhLp, uhL;
     int i, i1, d;
 
@@ -298,10 +295,10 @@ __global__ void Lh(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk], double 
     // Compute the value of uh(x) at Gauss points: uhG[0:Nx1,0:NumGLP - 1] !
     for (i1 = 0; i1 < NumGLP; i1++)
     {
-        uhG[i][i1] = 0;
+        uhG[i1] = 0;
         for (d = 0; d < dimPk; d++)
         {
-            uhG[i][i1] = uhG[i][i1] + uh[i][d] * phiG[i1][d];
+            uhG[i1] = uhG[i1] + uh[i][d] * phiG[i1][d];
         }
     }
 
@@ -312,7 +309,7 @@ __global__ void Lh(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk], double 
         du[i][d] = 0;
         for (i1 = 0; i1 < NumGLP; i1++)
         {
-            du[i][d] = du[i][d] + 0.5 * weight[i1] * HCL.f(uhG[i][i1]) * phixG[i1][d];
+            du[i][d] = du[i][d] + 0.5 * weight[i1] * HCL.f(uhG[i1]) * phixG[i1][d];
         }
     }
 
@@ -354,11 +351,7 @@ __global__ void Lh(double uh[Nx1 + 1][dimPk], double du[Nx1 + 1][dimPk], double 
     // Calculate the surface integral !
     for (d = 0; d < dimPk; d++)
     {
-        //du[i][d] = du[i][d] - (1 * phiGR[d] - 1 * phiGL[d]) / hx;
         du[i][d] = du[i][d] - (fhatR * phiGR[d] - fhatL * phiGL[d]) / hx;
-        //du[i][d] = du[i][d] - (uhR * phiGR[d] - uhL * phiGL[d]) / hx;
-
-        //printf("%.16f  %.16f\n", phiGR[d], phiGL[d]);
     }
 
     // divide the mass
